@@ -100,7 +100,6 @@ foreach ($DomainToReplace in $Domains) {
              Write-Host "User Mailbox - checking " $ThisMailUser.PrimarySMTPAddress -ForegroundColor Green
 
             try {
-                Write-Host "Checking User Mailbox addresses on " $ThisMailUser.DisplayName
                 foreach ($Address in $ThisMailbox.EmailAddresses) {
                     $UserObj = New-Object PSObject
                     $UserObj | Add-Member -MemberType NoteProperty -Name "Time" -Value (Get-Date).ToString("yyyyMMdd-HH:mm:ss.fff")
