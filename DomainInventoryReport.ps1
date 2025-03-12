@@ -211,7 +211,7 @@ foreach ($DomainToReplace in $Domains) {
                 # Store errors and warnings
                 $WarningLog = @()
                 $ErrorLog = @()
-        <#
+        
                 $ThisPrimarySMTP = $ThisMailContact.PrimarySMTPAddress
                 $ThisPrimarySMTPDomain = $ThisPrimarySMTP.Split("@")[1]
        
@@ -222,7 +222,7 @@ foreach ($DomainToReplace in $Domains) {
                     Write-Host $ActionValue
                     $UserObj | Add-Member -MemberType NoteProperty -Name "Action_SMTP" -Value $ActionValue
                 }
-        #>
+        
                 foreach ($Address in $ThisMailContact.EmailAddresses) {
                     $UserObj = New-Object PSObject
                     $UserObj | Add-Member -MemberType NoteProperty -Name "Time" -Value (Get-Date).ToString("yyyyMMdd-HH:mm:ss.fff")
