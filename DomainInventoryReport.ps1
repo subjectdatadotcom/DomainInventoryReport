@@ -1,20 +1,18 @@
-﻿<#
+<#
 .SYNOPSIS
-This script inventories email addresses and domains for both Exchange Online recipients and Azure AD Security Groups, offering a comprehensive view of user mailbox configurations, group memberships, and security group details without making any changes.
+This PowerShell script inventories objectes for specified domains in Exchange Online, providing comprehensive insights without making any changes to the configurations.
 
+.DESCRIPTION 
+The script ensures that necessary PowerShell modules (ExchangeOnlineManagement and MSOnline) are installed and loaded, connects to Exchange Online, and imports domains from a CSV file for detailed review. It gathers email properties such as UserPrincipalName and primary SMTP addresses, cataloguing these for various recipient types like UserMailbox, MailUser, and GroupMailbox. The script aims to log all findings to aid in administrative reviews and support compliance, highlighting potential areas for future interventions.
 
-.DESCRIPTION
-The script checks and installs necessary PowerShell modules (ExchangeOnlineManagement, MSOnline, and AzureAD), connects to Exchange Online and Azure AD, and imports domains from a CSV file for detailed review. It gathers email properties such as UserPrincipalName and primary SMTP addresses, cataloging these for various recipient types like UserMailbox, MailUser, and GroupMailbox. Additionally, the script identifies Azure AD security groups that are security-enabled but not mail-enabled, providing insights into their configurations. The script is designed to log all findings to aid in administrative reviews and support compliance, highlighting potential areas for future interventions.
+.NOTES 
+The script requires administrative credentials for Exchange Online and is designed for administrators who need to audit and maintain accurate records of recipient configurations across Exchange Online.
 
-.NOTES
-The script requires administrative credentials for Exchange Online and Azure AD. It is suited for administrators needing to audit and maintain accurate records of recipient configurations and group attributes across Exchange Online and Azure AD.
-
-.AUTHOR
+.AUTHOR 
 SubjectData
 
-.EXAMPLE
-.\DomainInventoryReport.ps1
-Executes the script, compiling email address configurations and security group details according to the domains listed in 'Domains.csv', generating a detailed report. This report includes current settings and identifies all processed entities without making any modifications.
+.EXAMPLE 
+.\DomainInventoryReport.ps1 Executes the script, compiling email address configurations according to the domains listed in 'Domains.csv', generating a detailed report. This report includes current settings and identifies all processed entities without making any modifications.
 #>
 
 # Ensure ExchangeOnlineManagement module is installed and imported
@@ -39,20 +37,8 @@ if (-not (Get-Module -Name $msolModule -ListAvailable)) {
 Import-Module $msolModule -Force
 Write-Host "$msolModule module successfully loaded." -ForegroundColor Green
 
-# Ensure AzureAD module is installed and imported
-$azureADModule = "AzureAD"
-
-if (-not (Get-Module -Name $azureADModule -ListAvailable)) {
-    Write-Host "$azureADModule module not found. Installing..." -ForegroundColor Yellow
-    Install-Module -Name $azureADModule -Force -Scope CurrentUser
-}
-
-Import-Module $azureADModule -Force
-Write-Host "$azureADModule module successfully loaded." -ForegroundColor Green
-
 # Connect to Exchange Online
 try {
-    Connect-AzureAD
     Connect-ExchangeOnline 
     Connect-MsolService
 } catch {
@@ -342,35 +328,6 @@ foreach ($DomainToReplace in $Domains) {
 
         $report += $UserObj       
     }
-
-    # Fetch security-enabled, mail-disabled Azure AD Groups
-    $securityGroups = Get-AzureADGroup -All $true | Where-Object { $_.SecurityEnabled -eq $true -and $_.MailEnabled -eq $false}
-    foreach ($Group in $securityGroups) {
-    try {
-        Write-Host "Processing Azure AD Security Group: " $Group.DisplayName -ForegroundColor DarkGreen
-
-        $UserObj = New-Object PSObject
-        $UserObj | Add-Member -MemberType NoteProperty -Name "Time" -Value (Get-Date).ToString("yyyyMMdd-HH:mm:ss.fff")
-        $UserObj | Add-Member -MemberType NoteProperty -Name "GUID" -Value $Group.ObjectId
-        $UserObj | Add-Member -MemberType NoteProperty -Name "PrimaryEmailAddress" -Value $Group.Mail
-        $UserObj | Add-Member -MemberType NoteProperty -Name "DisplayName" -Value $Group.DisplayName
-        $UserObj | Add-Member -MemberType NoteProperty -Name "RecipientType" -Value "AzureADSecurityGroup"
-        $UserObj | Add-Member -MemberType NoteProperty -Name "RecipientTypeDetails" -Value "SecurityEnabled, MailDisabled"
-        $UserObj | Add-Member -MemberType NoteProperty -Name "IsObjectSyncedAADC" -Value ($Group.OnPremisesSyncEnabled -eq $true)
-
-        # Append to report
-        $report += $UserObj
-
-    } catch {
-        Write-Host "Error processing group: " $Group.DisplayName -ForegroundColor Red
-        $ErrorLog = "General Azure AD Security Group Error: $($_.Exception.Message)"
-        $UserObj | Add-Member -MemberType NoteProperty -Name "GeneralError" -Value $ErrorLog
-        $report += $UserObj
-    }
-
-    Write-Host "Completed processing for: " $Group.DisplayName -ForegroundColor Green
-    }
-
 
     #Let's log any remaining user accounts that are using the domain in some way, but don't have any Exchange attributes, and are therefore not Recipients
     Write-Host "Let's check any user accounts that are using the domain but have no mail attributes" -foregroundcolor cyan
