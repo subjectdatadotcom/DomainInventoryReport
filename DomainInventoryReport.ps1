@@ -126,6 +126,43 @@ foreach ($DomainToReplace in $Domains) {
             }
         }
 
+        elseif ($RecipientDetails -eq "SharedMailbox") {
+            $ThisMailbox = Get-Mailbox -Identity $GUID
+            $UserObj | Add-Member -MemberType NoteProperty -Name "IsObjectSyncedAADC" -Value $ThisMailbox.IsDirSynced
+
+            # Initialize Warning and Error logs as empty arrays
+            $WarningLog = @()
+            $ErrorLog = @()
+
+             Write-Host "SharedMailbox - checking " $ThisMailUser.PrimarySMTPAddress -ForegroundColor Green
+
+            try {
+                foreach ($Address in $ThisMailbox.EmailAddresses) {
+                    $UserObj = New-Object PSObject
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "Time" -Value (Get-Date).ToString("yyyyMMdd-HH:mm:ss.fff")
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "GUID" -Value $GUID
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "PrimaryEmailAddress" -Value $Address
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "DisplayName" -Value $DisplayName
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "RecipientType" -Value $RecipientType
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "RecipientTypeDetails" -Value $RecipientDetails
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "IsObjectSyncedAADC" -Value $ThisMailbox.IsDirSynced
+                    $report += $UserObj
+                }
+
+                # -- Append Exception Type & Message for each condition --
+                if ($WarningLog -or $ErrorLog) {
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "ExceptionType" -Value "Warnings & Errors"
+                    $UserObj | Add-Member -MemberType NoteProperty -Name "Message" -Value (($WarningLog + $ErrorLog) -join " | ")
+                }
+            }
+            catch {
+                Write-Host $ThisMailbox.UserPrincipalName -ForegroundColor DarkMagenta
+                # Capture General Errors
+                $ErrorLog += "General Error: $($_.Exception.Message)"                
+                $UserObj | Add-Member -MemberType NoteProperty -Name "GeneralError" -Value $ErrorLog
+            }
+        }
+
         # Handling MailUser - Completed - Yellow
         elseif ($RecipientType -eq "MailUser") {
              try {
@@ -321,7 +358,7 @@ foreach ($DomainToReplace in $Domains) {
         else {
             <# Action when all if and elseif conditions are false #>
 			$ActionValue = "************Unrecognized recipient type!"
-			Write-Host $ActionValue -foregroundcolor DarkRed
+			Write-Host $ActionValue $Recipient.PrimarySMTPAddress -foregroundcolor DarkRed 
 			$UserObj | Add-Member -Membertype NoteProperty -Name "Action" -Value $Actionvalue
         }
 
